@@ -159,4 +159,87 @@ let subscription = observable.subscribe({ num in
 .disposed(by: disposeBag)
 ```
 
-###
+### Traits
+
+Traits는 일반적인 Observable보다 좁은 범위의 Observable을 선택적으로 사용할수 있음
+
+코드 가독성을 높일 수 있음
+
+#### 종류
+
+Single, Maybe, Completable
+
+##### Single
+- .success(value) or .error 이벤트를 방출
+- .success(value) = .next + .completed
+- 성공 또는 실패같은 1회성 프로세스에서 사용
+
+##### Completable
+- 오직 .completed or .error 만을 방출
+- 연산이 제대로 완료되었는지 확인하고 싶을때 등에 사용
+
+##### Maybe
+- Single 와 Completable을 섞어 놓은것
+- .success(value), .completable, .error 모두 방출 가능
+- 프로세스가 성공, 실패 여부와 함께 출력값도 방출할수 있을때
+
+##### 샘플
+```swift
+     let disposeBag = DisposeBag()
+     enum FileReadError: Error {
+         case fileNotFound, unreadable, encodingFailed
+     }
+     func loadText(from name: String) -> Single<String> {
+         return Single.create{ single in
+             let disposable = Disposables.create()
+             guard let path = Bundle.main.path(forResource: name, ofType: "txt") else {
+                 single(.error(FileReadError.fileNotFound))
+                 return disposable
+             }
+             guard let data = FileManager.default.contents(atPath: path) else {
+                 single(.error(FileReadError.unreadable))
+                 return disposable
+             }
+             guard let contents = String(data: data, encoding: .utf8) else {
+                 single(.error(FileReadError.encodingFailed))
+                 return disposable
+             }
+             single(.success(contents))
+             return disposable
+         }
+     }
+     
+     loadText(from: "Hello")
+         .subscribe{
+             switch $0 {
+             case .success(let string):
+                 print(string)
+             case .error(let error):
+                 print(error)
+             }
+         }
+         .disposed(by: disposeBag)
+```
+
+### Challenges
+
+#### 부수작용 구현 do 연산자
+- 이벤트 변화 없이 어떤 작업을 추가 가능 
+- do는 subscribe는 가지고 있지 않는 onSubscribe 핸들러를 갖고 있음
+- do 연산자를 이용할 수 있는 method는 do(onNext:onError:onCompleted:onSubscribe:onDispose)
+
+```swift
+     let observable = Observable<Any>.never()
+     let disposeBag = DisposeBag()
+     observable.do(
+         onSubscribe: { print("Subscribed")}
+         ).subscribe(
+             onNext: { (element) in
+                 print(element)
+         },
+             onCompleted: {
+                 print("Completed")
+         }
+     )
+```
+- do의 onSubscribe 에서 구독했음을 표시하는 문구를 프린트
