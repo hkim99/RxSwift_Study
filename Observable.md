@@ -183,7 +183,6 @@ Single, Maybe, Completable
 - .success(value), .completable, .error 모두 방출 가능
 - 프로세스가 성공, 실패 여부와 함께 출력값도 방출할수 있을때
 
-##### 샘플
 ```swift
      let disposeBag = DisposeBag()
      enum FileReadError: Error {
@@ -221,9 +220,7 @@ Single, Maybe, Completable
          .disposed(by: disposeBag)
 ```
 
-### Challenges
-
-#### 부수작용 구현 do 연산자
+### 부수작용 구현 do 연산자
 - 이벤트 변화 없이 어떤 작업을 추가 가능 
 - do는 subscribe는 가지고 있지 않는 onSubscribe 핸들러를 갖고 있음
 - do 연산자를 이용할 수 있는 method는 do(onNext:onError:onCompleted:onSubscribe:onDispose)
