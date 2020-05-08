@@ -61,3 +61,127 @@ let elementAt = PublishSubject<String>()
 // next(3)
 // completed
 ```
+
+### .skip
+지정한 n개의 요소를 skip
+
+```swift
+Observable.of("A", "B", "C", "D")
+    .skip(2)
+    .subscribe(onNext: {
+        print($0)
+    })
+    .disposed(by: disposeBag)
+
+// C D 가 출력됨
+```
+
+### .skipWhile
+fileter 와는 반대로 조건이 flase 일때만 이벤트를 방출하며 조건을 충족하여 한번 skip 하면 더이상 상관없이 이벤트 방출
+
+```swift
+Observable.of(2, 2, 3, 4, 4)
+    .skipWhile({ (int) -> Bool in
+        int % 2 == 0
+    })
+    .subscribe(onNext: {
+        print($0)
+    })
+    .disposed(by: disposeBag)
+
+// 3 4 4 가 출력됨
+```
+
+### .skipUntil
+다른 observable 의 이벤트가 발생할때까지 자신의 이벤트를 skip
+
+```swift
+let subject = PublishSubject<String>()
+let trigger = PublishSubject<String>()
+    
+    subject
+        .skipUntil(trigger)
+        .subscribe(onNext: {
+            print($0)
+        })
+        .disposed(by: disposeBag)
+    
+    subject.onNext("A")
+    subject.onNext("B")
+    
+    trigger.onNext("X")
+    
+    subject.onNext("C")
+
+// C 가 출력됨
+```
+이유는 trigger 이벤트가 발생하기전까지의 자신의 이벤트는 전부 skip 했기때문
+
+### .take
+skip 의 반대 개념
+
+```swift
+Observable.of(1,2,3,4,5)
+    .take(2)
+    .subscribe(onNext: {
+        print($0)
+    })
+    .disposed(by: disposeBag)
+
+// 1 2 가 출력됨
+```
+
+### .takeWhile
+skipWhile 의 반대 개념. true 만 출력됨
+
+```swift
+Observable.of(2, 2, 3, 4, 4)
+    .skipWhile({ (int) -> Bool in
+        int % 2 == 0
+    })
+    .subscribe(onNext: {
+        print($0)
+    })
+    .disposed(by: disposeBag)
+
+// 2 2 가 출력됨
+```
+
+### .takeUntil
+skipUntil 와는 반대로 다른 observable 의 이벤트가 발생하기 전까지의 이벤트를 받는다
+
+```swift
+let subject = PublishSubject<String>()
+let trigger = PublishSubject<String>()
+    
+    subject
+        .takeUntil(trigger)
+        .subscribe(onNext: {
+            print($0)
+        })
+        .disposed(by: disposeBag)
+    
+    subject.onNext("A")
+    subject.onNext("B")
+    
+    trigger.onNext("X")
+    
+    subject.onNext("C")
+
+// A B 가 출력됨
+```
+이유는 trigger 이벤트가 발생하기전까지의 자신의 이벤트는 전부 skip 했기때문
+
+### .distinctUntilChanged
+중복해서 이어지는 값을 무시
+
+```swift
+Observable.of(2, 2, 3, 4, 4)
+    .distinctUntilChanged()
+    .subscribe(onNext: {
+        print($0)
+    })
+    .disposed(by: disposeBag)
+
+// 2 3 4 가 출력됨
+```
