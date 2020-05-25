@@ -185,3 +185,101 @@ Observable.of(2, 2, 3, 4, 4)
 
 // 2 3 4 가 출력됨
 ```
+
+### toArray
+Observable의 요소들을 배열로 변환
+
+```swift
+Observable.of(2, 3, 4)
+    .toArray()
+    .subscribe({
+        print($0)
+    })
+    .disposed(by: disposeBag)
+
+// [2, 3, 4] 가 출력됨
+```
+
+### map
+Observable 에서 동작 하는 그냥 Swift 일반적으로 쓰이는 map랑 같음
+
+```swift
+Observable.of(2, 3, 4)
+    .map{ $0 * 2 }
+    .subscribe(onNext: {
+        print($0)
+    })
+    .disposed(by: disposeBag)
+
+// [2, 3, 4] 가 출력됨
+```
+
+### flatMap
+1차원 배열에서 nil 제거. Swift 4.1이상에서는 compactMap 쓰라고 나옴
+
+```swift
+let array = [1, 2, 3, nil, 5]
+    let flatMap = array.flatMap{ $0 }
+    print(flatMap)
+
+// [1, 2, 3, 5] 가 출력됨
+```
+
+2차원 배열의 경우. 1차원 배열로 만듬. nil 은 제거하지 않음
+```swift
+let array = [[1, 2, nil],[4, nil],[6, 7, nil, 9]]
+    let flatMap = array.flatMap{ $0 }
+    print(flatMap)
+
+// [Optional(1), Optional(2), nil, Optional(4), nil, Optional(6), Optional(7), nil, Optional(9)] 가 출력됨
+```
+
+### compactMap
+1차원 배열에서 nil 제거
+
+```swift
+let array = [1, 2, 3, nil, 5]
+    let compactMap = array.compactMap{ $0 }
+    print(compactMap)
+
+// [1, 2, 3, 5] 가 출력됨
+```
+
+2차원 배열의 경우. nil 은 제거하지 않음
+```swift
+let array = [[1, 2, nil],[4, nil],[6, 7, nil, 9]]
+    let compactMap = array.compactMap{ $0 }
+    print(compactMap)
+
+// [[Optional(1), Optional(2), nil], [Optional(4), nil], [Optional(6), Optional(7), nil, Optional(9)]] 가 출력됨
+```
+
+### flatMap
+가장 최근의 observable 에서 나오는 값만 받음
+
+```swift
+struct Student {
+    var score: BehaviorSubject<Int>
+}
+
+let ryan = Student(score: BehaviorSubject(value: 80))
+    let charlotte = Student(score: BehaviorSubject(value: 90))
+    let student = PublishSubject<Student>()
+    
+    student
+        .flatMapLatest { $0.score }
+        .subscribe(onNext: {
+            print($0)
+        })
+        .disposed(by: disposeBag)
+    
+    student.onNext(ryan)
+    ryan.score.onNext(85)
+    
+    student.onNext(charlotte)
+    
+    ryan.score.onNext(95)
+    charlotte.score.onNext(100)
+
+// 80 85 90 100 가 출력됨
+```
