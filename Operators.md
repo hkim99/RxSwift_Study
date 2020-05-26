@@ -283,3 +283,191 @@ let ryan = Student(score: BehaviorSubject(value: 80))
 
 // 80 85 90 100 가 출력됨
 ```
+
+### compactMap
+1차원 배열에서 nil 제거
+
+```swift
+let array = [1, 2, 3, nil, 5]
+    let compactMap = array.compactMap{ $0 }
+    print(compactMap)
+
+// [1, 2, 3, 5] 가 출력됨
+```
+
+2차원 배열의 경우. nil 은 제거하지 않음
+
+```swift
+let array = [[1, 2, nil],[4, nil],[6, 7, nil, 9]]
+    let compactMap = array.compactMap{ $0 }
+    print(compactMap)
+
+// [[Optional(1), Optional(2), nil], [Optional(4), nil], [Optional(6), Optional(7), nil, Optional(9)]] 가 출력됨
+```
+
+### flatMapLatest
+가장 최근의 observable 에서 나오는 값만 받음
+
+```swift
+struct Student {
+    var score: BehaviorSubject<Int>
+}
+
+let ryan = Student(score: BehaviorSubject(value: 80))
+    let charlotte = Student(score: BehaviorSubject(value: 90))
+    let student = PublishSubject<Student>()
+    
+    student
+        .flatMapLatest { $0.score }
+        .subscribe(onNext: {
+            print($0)
+        })
+        .disposed(by: disposeBag)
+    
+    student.onNext(ryan)
+    ryan.score.onNext(85)
+    
+    student.onNext(charlotte)
+    
+    ryan.score.onNext(95)
+    charlotte.score.onNext(100)
+
+// 80 85 90 100 가 출력됨
+```
+
+### startWith(_:)
+
+초기값을 설정할수 있음
+
+```swift
+Observable.of(2, 3, 4)
+    .startWith(1)
+    .subscribe(onNext: {
+        print($0)
+    })
+    .disposed(by: disposeBag)
+
+// 1, 2, 3, 4 가 출력됨
+```
+
+### Observable.concat(_:)
+
+sequence 를 연결함
+
+```swift
+let first = Observable.of(1, 2, 3)
+let second = Observable.of(4, 5, 6)
+let observable = Observable.concat([first, second])
+
+observable
+	.subscribe(onNext: {
+    print($0)
+	})
+	.disposed(by: disposeBag)
+
+// 1, 2, 3, 4, 5, 6 가 출력됨
+```
+
+### concat(_:)
+
+Observable.concat(_:) 과 같은 방법
+
+```swift
+let first = Observable.of(1, 2, 3)
+let second = Observable.of(4, 5, 6)
+let observable = first.concat(second)
+observable.subscribe(onNext: { print($0) })
+
+// 1, 2, 3, 4, 5, 6 가 출력됨
+```
+
+### concatMap(_:)
+
+flatMap 과 concat  을 합쳐놓은거갓은것
+
+flatMap 과 concatMap의 차이점은 concatMap 은 순서가 보장된다는 것
+
+```swift
+    let sequences = [
+        "123": Observable.of("1", "2", "3"),
+        "ABC": Observable.of("A", "B", "C")
+    ]
+    let observable = Observable.of("123", "ABC")
+    
+    observable.flatMap {
+        data in sequences[data] ?? .empty()
+        
+    }.subscribe({ print($0.element ?? "") })
+// 1, 2, A, 3, B, C 가 출력됨
+    
+    observable.concatMap({ (data) in
+        return sequences[data] ?? .empty()
+    }).subscribe({ print($0.element ?? "") })
+// 1, 2, 3, A, B, C 가 출력됨 <- 순서 보장
+```
+
+### merge()
+
+sequence 합치기 가장 쉬운 방법
+
+각각이 요소들이 도착하는대로 받아서 방출. 순서가 보장되지는 않는듯
+
+```swift
+    let first = Observable.of(1, 2, 3)
+    let second = Observable.of(4, 5, 6)
+    
+    Observable.of(first, second)
+        .merge()
+        .subscribe(onNext: {
+            print($0)
+        })
+        .disposed(by: disposeBag)
+// 1, 2, 4, 3, 5, 6 가 출력됨
+```
+
+### merge(maxConcurrent:)
+
+합칠수 있는 sequence의 수를 제한할때 사용
+
+limit에 도달한 이후에 들어오는 obsevable을 대기열에 넣고, 현재 sequence중 하나가 완료되자마자 구독을 시작
+
+리소스를 제한하거나 할때 사용됨
+
+```swift
+struct Player {
+    init(score: Int) {
+        self.score = BehaviorSubject(value: score)
+    }
+    let score: BehaviorSubject<Int>
+}
+
+		let hk = Player(score: 80)
+    let cj = Player(score: 90)
+    let pk = Player(score: 50)
+
+    Observable.of(hk.score, cj.score, pk.score)
+    .merge(maxConcurrent: 2)
+    .subscribe(onNext: {
+        print("merge  : \($0)")
+    }, onError: { error in
+        print("merge error")
+    })
+    .disposed(by: disposeBag)
+
+    hk.score.onNext(85)
+    pk.score.onNext(55)
+    cj.score.onNext(100)
+    hk.score.onCompleted()
+    pk.score.onNext(60)
+    cj.score.onNext(86)
+
+/* 
+merge  : 80
+merge  : 90
+merge  : 85
+merge  : 100
+merge  : 55
+merge  : 60
+merge  : 86
+*/
+```
