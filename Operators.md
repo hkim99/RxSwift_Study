@@ -471,3 +471,265 @@ merge  : 60
 merge  : 86
 */
 ```
+
+## 이하 아직 코드 수정/실행 안해봄
+
+### combineLatest(::resultSelector:)
+
+결합된 sequence를 방출할때마다, 제공한 클로저르 호출하며 각각의 내부 sequence들의 최종값을 받음
+
+```swift
+     let left = PublishSubject<String>()
+     let right = PublishSubject<String>()
+
+     let observable = Observable.combineLatest(left, right, resultSelector: { lastLeft, lastRight in
+         "\(lastLeft) \(lastRight)"
+     })
+
+     let disposable = observable.subscribe(onNext: {
+         print($0)
+     })
+
+     print("> Sending a value to Left")
+     left.onNext("Hello,")
+     print("> Sending a value to Right")
+     right.onNext("world")
+     print("> Sending another value to Right")
+     right.onNext("RxSwift")
+     print("> Sending another value to Left")
+     left.onNext("Have a good day,")
+
+     disposable.dispose()
+
+     /* Prints:
+      > Sending a value to Left
+      > Sending a value to Right
+      Hello, world
+      > Sending another value to Right
+      Hello, RxSwift
+      > Sending another value to Left
+      Have a good day, RxSwift
+     */
+```
+
+### zip
+
+또다른 결합 연산자. 밑의 예에서 Vienna가 출력됮 않은 이유는.
+둘중 하나의 observable이랃 완료되면 zip도 같이 완료되기 때문
+
+```swift
+     enum Weatehr {
+         case cloudy
+         case sunny
+     }
+
+     let left:Observable<Weatehr> = Observable.of(.sunny, .cloudy, .cloudy, .sunny)
+     let right = Observable.of("Lisbon", "Copenhagen", "London", "Madrid", "Vienna")
+
+     let observable = Observable.zip(left, right, resultSelector: { (weather, city) in
+         return "It's \(weather) in \(city)"
+     })
+
+     observable.subscribe(onNext: {
+         print($0)
+     })
+
+     /* Prints:
+      It's sunny in Lisbon
+      It's cloudy in Copenhagen
+      It's cloudy in London
+      It's sunny in Madrid
+      */
+```
+
+### withLatestFrom(_:)
+
+여러개의 이벤트를 한번에 받는경우. 최신값만 출력.
+
+```swift
+     let button = PublishSubject<Void>()
+     let textField = PublishSubject<String>()
+
+     let observable = button.withLatestFrom(textField)
+     _ = observable.subscribe(onNext: { print($0) })
+
+     textField.onNext("Par")
+     textField.onNext("Pari")
+     textField.onNext("Paris")
+     button.onNext(())
+     button.onNext(())
+// Paris 가 출력됨
+```
+
+### sample(_:)
+
+`withLatestFrom(_:)` 와 거의 똑같이 작동하지만 한번마 방출.
+// onNext 여러번 해도 한번만 방출하고 종료된다는 뜻인가??
+
+```swift
+     let button = PublishSubject<Void>()
+     let textField = PublishSubject<String>()
+
+     let observable = textField.sample(button)
+
+     textField.onNext("Par")
+     textField.onNext("Pari")
+     textField.onNext("Paris")
+     button.onNext(())
+     button.onNext(())
+// Paris 가 출력됨
+
+// withLatestFrom(_:)을 가지고 sample(_:)처럼 작동하게 하려면 distinctUntilChanged()와 함께 사용하면 된다. 
+// 아래의 코드처럼 작성하면 Paris가 한번 출력된다.
+let observable = button.withLatestFrom(textField)
+     _ = observable
+         .distinctUntilChanged()
+         .subscribe(onNext: { print($0) })
+
+// withLatestFrom(_:)은 데이터 observable을 파라미터로 받고, sample(_:)은 trigger observable을 파라미터로 받는다. 
+// 실수하기 쉬운 부분이니 주의할 것
+```
+
+### amb(_:)
+
+두개의 sequence 이벤트 중 어떤것을 구독할지 선택할수 있게 함
+둘중 하나가 먼저 이벤트르 방출하며 나머지 하나는 구독을 중단하고 처음 작동한 이벤트만 방출
+
+```swift
+        let left = PublishSubject<String>()
+ 	let right = PublishSubject<String>()
+
+ 	let observable = left.amb(right)
+ 	let disposable = observable.subscribe(onNext: { value in
+ 		print(value)
+ 	})
+
+ 	left.onNext("Lisbon")
+ 	right.onNext("Copenhagen")
+ 	left.onNext("London")
+ 	left.onNext("Madrid")
+ 	right.onNext("Vienna")
+
+ 	disposable.dispose()
+//  가 출력됨
+```
+
+### switchLatest(_:)
+
+설정한 observable 의 마지막 sequence 아이템만 구독. flatMapLatest랑 비슷
+
+```swift
+     let one = PublishSubject<String>()
+     let two = PublishSubject<String>()
+     let three = PublishSubject<String>()
+
+     let source = PublishSubject<Observable<String>>()
+
+     let observable = source.switchLatest()
+     let disposable = observable.subscribe(onNext: { print($0) })
+
+     source.onNext(one)
+     one.onNext("Some text from sequence one")
+     two.onNext("Some text from sequence two")
+
+     source.onNext(two)
+     two.onNext("More text from sequence two")
+     one.onNext("and also from sequence one")
+
+     source.onNext(three)
+     two.onNext("Why don't you see me?")
+     one.onNext("I'm alone, help me")
+     three.onNext("Hey it's three. I win")
+
+     source.onNext(one)
+     one.onNext("Nope. It's me, one!")
+
+     disposable.dispose()
+
+     /* Prints:
+      Some text from sequence one
+      More text from sequence two
+      Hey it's three. I win
+      Nope. It's me, one!
+      */
+```
+
+### reduece(::)
+
+Swift 표준 reduce(:_:_) 랑 비슷
+
+```swift
+     let source = Observable.of(1, 3, 5, 7, 9)
+
+     let observable = source.reduce(0, accumulator: +)
+     observable.subscribe(onNext: { print($0) } )
+
+     // 위와 같은 의미
+     let observable2 = source.reduce(0, accumulator: { summary, newValue in
+         return summary + newValue
+     })
+     observable2.subscribe(onNext: { print($0) })
+//  25 가 출력됨
+
+// 그냥 Swift로 하면
+let array = [1, 3, 5, 7, 9]
+let result = array.reduce(0) { $0 + $1 }
+print(result) // 25
+```
+
+### scan(_:accumulator)
+
+reduce(:_:_) 처럼 작동하지마 리턴값이 Observable
+
+```swift
+     let source = Observable.of(1, 3, 5, 7, 9)
+
+     let observable = source.scan(0, accumulator: +)
+     observable.subscribe(onNext: { print($0) })
+
+     /* Prints:
+      1
+      4
+      9
+      16
+      25
+     */
+```
+
+### replay
+
+지정한 버퍼의 크기만큼 이벤트를 저장하고 전달
+
+```swift
+```
+
+### replayAll
+
+모든 이벤트를 저장하고 전달
+
+```swift
+```
+
+### buffer(timeSpan:cout:scheduler:)
+
+```swift
+
+```
+
+### delaySubscription(_:scheduler:)
+
+```swift
+
+```
+
+### Observable.interval(_:scheduler:)
+
+```swift
+
+```
+
+### Observable.timer(_:period:scheduler:)
+
+```swift
+
+```
